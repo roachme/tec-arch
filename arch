@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PGNAME="tman-arch"
+PGNAME="tec-arch"
 VERSION="v0.0.1"
 COMMAND=
 TASKDIR=
@@ -24,7 +24,7 @@ function die() {
 function usage()
 {
 cat << EOF
-Usage: tman ${PGNAME/tman-/} [OPTION]...
+Usage: tec ${PGNAME/tec-/} [OPTION]...
     arch        archive task directory
     extract     extract task directory
     help        show this help message and exit
@@ -73,7 +73,7 @@ function arch_arch()
     local dst="$TASKNAME.tar"
 
     # Add check to archive only done tasks
-    if ! grep -q "column : done" "$uwd/$src/.tman/column"; then
+    if ! grep -q "name : done" "$uwd/$src/.tec/column"; then
         die "'$TASKNAME': cannot archive non-done task"
     fi
 
@@ -87,18 +87,17 @@ function arch_arch()
 function arch_extract()
 {
     local uwd="$TASKDIR/$PRJNAME/$BRDNAME"
-    local src="$TASKNAME"
-    local dst="$TASKNAME.tar"
+    local src="${TASKNAME}.tar"
 
-    if [ ! -f "$uwd/$src.tar" ]; then
-        die "'$TASKNAME': no such archived task"
+    if [ ! -f "$uwd/$src" ]; then
+        die "'$src': no such archived task"
     fi
 
     cd "$uwd" || die "could not switch to directory '$uwd'"
-    if ! tar -xf "$dst"; then
-        die "could not create archive '$?'"
+    if ! tar -xf "$src"; then
+        die "could not extract archive '$?'"
     fi
-    rm -rf "$dst"
+    rm -rf "$src"
 }
 
 function arch_help()
@@ -110,9 +109,9 @@ function arch_list()
 {
     local uwd="$TASKDIR/$PRJNAME/$BRDNAME"
     find "$uwd" -name '*.tar' | while read -r arch; do
-        local mark="a"
+        local mark="arch"
         local taskid="$(basename -s .tar "$arch")"
-        local mydesc="$(tar -xOf "$uwd/$taskid.tar" "$taskid/.tman/units" | grep desc | cut -f 2 -d ':')"
+        local mydesc="$(tar -xOf "$uwd/$taskid.tar" "$taskid/.tec/units" | grep desc | cut -f 2 -d ':')"
 
         # HOTFIX: Trim leading whitespace in description
         mydesc="${mydesc#${mydesc%%[![:space:]]*}}"
