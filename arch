@@ -4,8 +4,8 @@ PGNAME="tec-arch"
 VERSION="v0.0.1"
 COMMAND=
 TASKDIR=
-PRJNAME=
-BRDNAME=
+ENVNAME=
+DESKNAME=
 TASKNAME=
 ISDEBUG=false
 
@@ -33,19 +33,19 @@ EOF
 }
 function check_arg_prj()
 {
-    if [ -z "$PRJNAME" ]; then
-        die "no project name is passed"
-    elif [ ! -d "$TASKDIR/$PRJNAME" ]; then
-        die "'$PRJNAME': no such project name"
+    if [ -z "$ENVNAME" ]; then
+        die "no environment name is passed"
+    elif [ ! -d "$TASKDIR/$ENVNAME" ]; then
+        die "'$ENVNAME': no such environment name"
     fi
 }
 
 function check_arg_brd()
 {
-    if [ -z "$BRDNAME" ]; then
-        die "no board name is passed"
-    elif [ ! -d "$TASKDIR/$PRJNAME/$BRDNAME" ]; then
-        die "'$BRDNAME': no such board name"
+    if [ -z "$DESKNAME" ]; then
+        die "no desk name is passed"
+    elif [ ! -d "$TASKDIR/$ENVNAME/$DESKNAME" ]; then
+        die "'$DESKNAME': no such desk name"
     fi
 }
 
@@ -53,22 +53,85 @@ function check_arg_task()
 {
     if [ -z "$TASKNAME" ]; then
         die "no task ID is passed"
+    elif [ ! -d "$TASKDIR/$ENVNAME/$DESKNAME/$TASKNAME" ]; then
+        die "'$TASKNAME': no such task ID"
+    fi
+}
+
+function get_and_check_project()
+{
+    local curr=
+    local fname="$TASKDIR/.tec/toggles"
+
+    if [ -f "$fname" ]; then
+        curr="$(grep -i curr "$fname" | cut -f 2 -d '=' | tr -d ' ')"
+    fi
+
+    if [ -z "$PRJNAME" ]; then
+        PRJNAME="$curr"
+    fi
+
+    # check project name
+    if [ -z "$PRJNAME" ]; then
+        die "no project name is passed"
+    elif [ ! -d "$TASKDIR/$PRJNAME" ]; then
+        die "'$PRJNAME': no such project name"
+    fi
+}
+
+function get_and_check_board()
+{
+    local curr=
+    local fname="$TASKDIR/$PRJNAME/.tec/toggles"
+
+    if [ -f "$fname" ]; then
+        curr="$(grep -i curr "$fname" | cut -f 2 -d '=' | tr -d ' ')"
+    fi
+
+    if [ -z "$BRDNAME" ]; then
+        BRDNAME="$curr"
+    fi
+
+    # check project name
+    if [ -z "$BRDNAME" ]; then
+        die "no board name is passed"
+    elif [ ! -d "$TASKDIR/$PRJNAME/$BRDNAME" ]; then
+        die "'$BRDNAME': no such board name"
+    fi
+}
+
+function get_and_check_task()
+{
+    local curr=
+    local fname="$TASKDIR/$PRJNAME/$BRDNAME/.tec/toggles"
+
+    if [ -f "$fname" ]; then
+        curr="$(grep -i curr "$fname" | cut -f 2 -d '=' | tr -d ' ')"
+    fi
+
+    if [ -z "$TASKNAME" ]; then
+        TASKNAME="$curr"
+    fi
+
+    # check project name
+    if [ -z "$TASKNAME" ]; then
+        die "no task ID is passed"
     elif [ ! -d "$TASKDIR/$PRJNAME/$BRDNAME/$TASKNAME" ]; then
         die "'$TASKNAME': no such task ID"
     fi
 }
 
-function check_args()
+function _arch_check_args()
 {
-    check_arg_prj
-    check_arg_brd
-    #check_arg_task
+    get_and_check_project
+    get_and_check_board
+    get_and_check_task
 }
 
 
 function arch_arch()
 {
-    local uwd="$TASKDIR/$PRJNAME/$BRDNAME"
+    local uwd="$TASKDIR/$ENVNAME/$DESKNAME"
     local src="$TASKNAME"
     local dst="$TASKNAME.tar"
 
@@ -86,7 +149,7 @@ function arch_arch()
 
 function arch_extract()
 {
-    local uwd="$TASKDIR/$PRJNAME/$BRDNAME"
+    local uwd="$TASKDIR/$ENVNAME/$DESKNAME"
     local src="${TASKNAME}.tar"
 
     if [ ! -f "$uwd/$src" ]; then
@@ -107,7 +170,7 @@ function arch_help()
 
 function arch_list()
 {
-    local uwd="$TASKDIR/$PRJNAME/$BRDNAME"
+    local uwd="$TASKDIR/$ENVNAME/$DESKNAME"
     find "$uwd" -name '*.tar' | while read -r arch; do
         local mark="arch"
         local taskid="$(basename -s .tar "$arch")"
@@ -121,7 +184,7 @@ function arch_list()
 
 
 # Driver part of the code
-OPTS=$(getopt -o b:di:p:P:T:hV --long board:,debug,prj:,taskid:,pgndir:,taskdir:help,version -n "$PGNAME" -- "$@")
+OPTS=$(getopt -o d:e:i:P:T:hV --long desk:,env:,taskid:,pgndir:,taskdir:help,version -n "$PGNAME" -- "$@")
 if [ $? -ne 0 ]; then
     #echo "error parsing options" >&2
     exit 1
@@ -132,20 +195,16 @@ eval set -- "$OPTS"
 
 while true; do
     case "$1" in
-        -b)
-            BRDNAME="$2"
+        -d)
+            DESKNAME="$2"
             shift 2
             ;;
-        -d)
-            ISDEBUG=true
-            shift 1
+        -e)
+            ENVNAME="$2"
+            shift 2
             ;;
         -i)
             TASKNAME="$2"
-            shift 2
-            ;;
-        -p)
-            PRJNAME="$2"
             shift 2
             ;;
         -P)
@@ -173,7 +232,7 @@ done
 # TODO: add default command (maybe)
 COMMAND="$1"; shift
 
-check_args
+_arch_check_args
 
 
 if [ ! -t 1 ]; then
