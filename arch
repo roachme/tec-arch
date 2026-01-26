@@ -24,14 +24,14 @@ function die() {
 function usage()
 {
 cat << EOF
-Usage: tec ${PGNAME/tec-/} [OPTION]...
+Usage: tec ${PGNAME/tec-/} [OPTION]... [TASKID]...
     arch        archive task directory
-    extract     extract task directory
+    ex          extract task directory
     help        show this help message and exit
-    list        list archived tasks
+    ls          list archived tasks
 EOF
 }
-function check_arg_prj()
+function check_arg_env()
 {
     if [ -z "$ENVNAME" ]; then
         die "no environment name is passed"
@@ -40,7 +40,7 @@ function check_arg_prj()
     fi
 }
 
-function check_arg_brd()
+function check_arg_desk()
 {
     if [ -z "$DESKNAME" ]; then
         die "no desk name is passed"
@@ -58,73 +58,73 @@ function check_arg_task()
     fi
 }
 
-function get_and_check_project()
+function get_and_check_env()
 {
     local curr=
     local fname="$TASKDIR/.tec/toggles"
 
     if [ -f "$fname" ]; then
-        curr="$(grep -i curr "$fname" | cut -f 2 -d '=' | tr -d ' ')"
+        curr="$(grep -i curr "$fname" | cut -f 2 -d ':' | tr -d ' ')"
     fi
 
-    if [ -z "$PRJNAME" ]; then
-        PRJNAME="$curr"
+    if [ -z "$ENVNAME" ]; then
+        ENVNAME="$curr"
     fi
 
-    # check project name
-    if [ -z "$PRJNAME" ]; then
-        die "no project name is passed"
-    elif [ ! -d "$TASKDIR/$PRJNAME" ]; then
-        die "'$PRJNAME': no such project name"
+    # check environment name
+    if [ -z "$ENVNAME" ]; then
+        die "no environment name is passed"
+    elif [ ! -d "$TASKDIR/$ENVNAME" ]; then
+        die "'$ENVNAME': no such environment name"
     fi
 }
 
-function get_and_check_board()
+function get_and_check_desk()
 {
     local curr=
-    local fname="$TASKDIR/$PRJNAME/.tec/toggles"
+    local fname="$TASKDIR/$ENVNAME/.tec/toggles"
 
     if [ -f "$fname" ]; then
-        curr="$(grep -i curr "$fname" | cut -f 2 -d '=' | tr -d ' ')"
+        curr="$(grep -i curr "$fname" | cut -f 2 -d ':' | tr -d ' ')"
     fi
 
-    if [ -z "$BRDNAME" ]; then
-        BRDNAME="$curr"
+    if [ -z "$DESKNAME" ]; then
+        DESKNAME="$curr"
     fi
 
-    # check project name
-    if [ -z "$BRDNAME" ]; then
-        die "no board name is passed"
-    elif [ ! -d "$TASKDIR/$PRJNAME/$BRDNAME" ]; then
-        die "'$BRDNAME': no such board name"
+    # check environment name
+    if [ -z "$DESKNAME" ]; then
+        die "no desk name is passed"
+    elif [ ! -d "$TASKDIR/$ENVNAME/$DESKNAME" ]; then
+        die "'$DESKNAME': no such desk name"
     fi
 }
 
 function get_and_check_task()
 {
     local curr=
-    local fname="$TASKDIR/$PRJNAME/$BRDNAME/.tec/toggles"
+    local fname="$TASKDIR/$ENVNAME/$DESKNAME/.tec/toggles"
 
     if [ -f "$fname" ]; then
-        curr="$(grep -i curr "$fname" | cut -f 2 -d '=' | tr -d ' ')"
+        curr="$(grep -i curr "$fname" | cut -f 2 -d ':' | tr -d ' ')"
     fi
 
     if [ -z "$TASKNAME" ]; then
         TASKNAME="$curr"
     fi
 
-    # check project name
+    # check environment name
     if [ -z "$TASKNAME" ]; then
         die "no task ID is passed"
-    elif [ ! -d "$TASKDIR/$PRJNAME/$BRDNAME/$TASKNAME" ]; then
+    elif [ ! -d "$TASKDIR/$ENVNAME/$DESKNAME/$TASKNAME" ]; then
         die "'$TASKNAME': no such task ID"
     fi
 }
 
 function _arch_check_args()
 {
-    get_and_check_project
-    get_and_check_board
+    get_and_check_env
+    get_and_check_desk
     get_and_check_task
 }
 
@@ -135,9 +135,16 @@ function arch_arch()
     local src="$TASKNAME"
     local dst="$TASKNAME.tar"
 
-    # Add check to archive only done tasks
-    if ! grep -q "name : done" "$uwd/$src/.tec/column"; then
-        die "'$TASKNAME': cannot archive non-done task"
+    if [ -n "$1" ]; then
+        TASKNAME="$1"
+        src="$TASKNAME"
+        dst="$TASKNAME.tar"
+    fi
+
+    if grep -q "$src" "$uwd/.tec/toggles"; then
+        die "'$TASKNAME': cannot archive toggle task"
+    elif [ ! -d "$uwd/$TASKNAME" ]; then
+        die "'$TASKNAME': no such task ID"
     fi
 
     cd "$uwd" || die "could not switch to directory '$uwd'"
@@ -147,10 +154,16 @@ function arch_arch()
     rm -rf "$src"
 }
 
-function arch_extract()
+function arch_ex()
 {
     local uwd="$TASKDIR/$ENVNAME/$DESKNAME"
     local src="${TASKNAME}.tar"
+
+    if [ -n "$1" ]; then
+        TASKNAME="$1"
+        src="${TASKNAME}.tar"
+        dst="${TASKNAME}"
+    fi
 
     if [ ! -f "$uwd/$src" ]; then
         die "'$src': no such archived task"
@@ -168,9 +181,10 @@ function arch_help()
     usage
 }
 
-function arch_list()
+function arch_ls()
 {
     local uwd="$TASKDIR/$ENVNAME/$DESKNAME"
+
     find "$uwd" -name '*.tar' | while read -r arch; do
         local mark="arch"
         local taskid="$(basename -s .tar "$arch")"
@@ -184,7 +198,7 @@ function arch_list()
 
 
 # Driver part of the code
-OPTS=$(getopt -o d:e:i:P:T:hV --long desk:,env:,taskid:,pgndir:,taskdir:help,version -n "$PGNAME" -- "$@")
+OPTS=$(getopt -o d:e:i:DP:T:hV --long desk:,env:debug,,taskid:,pgndir:,taskdir:help,version -n "$PGNAME" -- "$@")
 if [ $? -ne 0 ]; then
     #echo "error parsing options" >&2
     exit 1
@@ -244,10 +258,10 @@ fi
 
 if [ "$COMMAND" = "arch" ]; then
     arch_arch "$@"
-elif [ "$COMMAND" = "extract" ]; then
-    arch_extract "$@"
-elif [ -z "$COMMAND" ] || [ "$COMMAND" = "list" ]; then
-    arch_list "$@"
+elif [ "$COMMAND" = "ex" ]; then
+    arch_ex "$@"
+elif [ -z "$COMMAND" ] || [ "$COMMAND" = "ls" ]; then
+    arch_ls "$@"
 elif [ "$COMMAND" = "help" ]; then
     arch_help "$@"
 else
