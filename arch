@@ -24,11 +24,11 @@ function die() {
 function usage()
 {
 cat << EOF
-Usage: tec ${PGNAME/tec-/} [OPTION]...
+Usage: tec ${PGNAME/tec-/} [OPTION]... [TASKID]...
     arch        archive task directory
-    extract     extract task directory
+    ex          extract task directory
     help        show this help message and exit
-    list        list archived tasks
+    ls          list archived tasks
 EOF
 }
 function check_arg_env()
@@ -135,9 +135,16 @@ function arch_arch()
     local src="$TASKNAME"
     local dst="$TASKNAME.tar"
 
-    # Add check to archive only done tasks
-    if ! grep -q "name : done" "$uwd/$src/.tec/column"; then
-        die "'$TASKNAME': cannot archive non-done task"
+    if [ -n "$1" ]; then
+        TASKNAME="$1"
+        src="$TASKNAME"
+        dst="$TASKNAME.tar"
+    fi
+
+    if grep -q "$src" "$uwd/.tec/toggles"; then
+        die "'$TASKNAME': cannot archive toggle task"
+    elif [ ! -d "$uwd/$TASKNAME" ]; then
+        die "'$TASKNAME': no such task ID"
     fi
 
     cd "$uwd" || die "could not switch to directory '$uwd'"
@@ -147,10 +154,16 @@ function arch_arch()
     rm -rf "$src"
 }
 
-function arch_extract()
+function arch_ex()
 {
     local uwd="$TASKDIR/$ENVNAME/$DESKNAME"
     local src="${TASKNAME}.tar"
+
+    if [ -n "$1" ]; then
+        TASKNAME="$1"
+        src="${TASKNAME}.tar"
+        dst="${TASKNAME}"
+    fi
 
     if [ ! -f "$uwd/$src" ]; then
         die "'$src': no such archived task"
@@ -168,9 +181,10 @@ function arch_help()
     usage
 }
 
-function arch_list()
+function arch_ls()
 {
     local uwd="$TASKDIR/$ENVNAME/$DESKNAME"
+
     find "$uwd" -name '*.tar' | while read -r arch; do
         local mark="arch"
         local taskid="$(basename -s .tar "$arch")"
@@ -244,10 +258,10 @@ fi
 
 if [ "$COMMAND" = "arch" ]; then
     arch_arch "$@"
-elif [ "$COMMAND" = "extract" ]; then
-    arch_extract "$@"
-elif [ -z "$COMMAND" ] || [ "$COMMAND" = "list" ]; then
-    arch_list "$@"
+elif [ "$COMMAND" = "ex" ]; then
+    arch_ex "$@"
+elif [ -z "$COMMAND" ] || [ "$COMMAND" = "ls" ]; then
+    arch_ls "$@"
 elif [ "$COMMAND" = "help" ]; then
     arch_help "$@"
 else
