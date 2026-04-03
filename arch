@@ -31,6 +31,35 @@ Usage: tec ${PGNAME/tec-/} [OPTION]... [TASKID]...
     ls          list archived tasks
 EOF
 }
+
+function usage_arch()
+{
+    cat << EOF
+$PGNAME arch [ID]...
+EOF
+}
+
+function usage_ex()
+{
+    cat << EOF
+$PGNAME ex [ID]...
+EOF
+}
+
+function usage_help()
+{
+    cat << EOF
+$PGNAME help [ID]...
+EOF
+}
+
+function usage_ls()
+{
+    cat << EOF
+$PGNAME ls [ID]...
+EOF
+}
+
 function check_arg_env()
 {
     if [ -z "$ENVNAME" ]; then
@@ -178,7 +207,30 @@ function arch_ex()
 
 function arch_help()
 {
-    usage
+    if [ $# -eq 0 ]; then
+        usage
+        return 0
+    fi
+
+    for cmd in $@; do
+        case "$cmd" in
+            arch)
+                usage_arch
+                ;;
+            ex)
+                usage_ex
+                ;;
+            help)
+                usage_help
+                ;;
+            ls)
+                usage_ls
+                ;;
+            *)
+                elog "'$cmd': no such command"
+                ;;
+        esac
+    done
 }
 
 function arch_ls()
