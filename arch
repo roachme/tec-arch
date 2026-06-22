@@ -177,7 +177,7 @@ function arch_arch()
     fi
 
     cd "$uwd" || die "could not switch to directory '$uwd'"
-    if ! tar -cf "$dst" "$src"; then
+    if ! tar -Jcf "$dst" "$src"; then
         die "could not create archive '$?'"
     fi
     rm -rf "$src"
